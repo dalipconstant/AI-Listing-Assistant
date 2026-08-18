@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reset password — AI Listing Assistant</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(165deg, #f8fafc, #eef2ff);
+      display: grid; place-items: center; padding: 24px;
+      color: #0f172a;
+    }
+    .card {
+      width: 100%; max-width: 400px; background: #fff;
+      border: 1px solid #e2e8f0; border-radius: 14px;
+      padding: 24px; box-shadow: 0 10px 30px rgba(15,23,42,.08);
+    }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    p { margin: 0 0 16px; color: #64748b; font-size: 14px; line-height: 1.45; }
+    label { display: block; font-size: 12px; font-weight: 600; margin: 12px 0 6px; }
+    input {
+      width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0;
+      border-radius: 10px; font-size: 14px; background: #f8fafc;
+    }
+    input:focus {
+      outline: none; border-color: #93c5fd; background: #fff;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+    }
+    button {
+      width: 100%; margin-top: 16px; padding: 11px 14px;
+      border: none; border-radius: 10px; font-size: 14px; font-weight: 700;
+      color: #fff; background: linear-gradient(180deg, #3b82f6, #2563eb);
+      cursor: pointer;
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .msg { margin-top: 14px; font-size: 13px; line-height: 1.4; }
+    .ok { color: #047857; }
+    .err { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Reset password</h1>
+    <p id="subtitle">Choose a new password for AI Listing Assistant.</p>
+
+    <div id="formWrap">
+      <label for="password">New password</label>
+      <input id="password" type="password" minlength="6" placeholder="At least 6 characters" autocomplete="new-password" />
+
+      <label for="password2">Confirm password</label>
+      <input id="password2" type="password" minlength="6" placeholder="Repeat password" autocomplete="new-password" />
+
+      <button id="saveBtn" type="button">Save new password</button>
+    </div>
+
+    <p id="msg" class="msg"></p>
+  </div>
+
+  <script>
+    // ===== YOUR SUPABASE PROJECT =====
+    const SUPABASE_URL = "https://ddbeloxsjsrekwdryrcp.supabase.co";
+    // Use the same anon/publishable key as in popup.js
+    const SUPABASE_ANON_KEY = "sb_publishable_otnqsJbJlqRsLAZyCdcHqQ_NTdwl5gY";
+
+    const msg = document.getElementById("msg");
+    const formWrap = document.getElementById("formWrap");
+    const subtitle = document.getElementById("subtitle");
+    const saveBtn = document.getElementById("saveBtn");
+
+    function show(text, ok) {
+      msg.textContent = text;
+      msg.className = "msg " + (ok ? "ok" : "err");
+    }
+
+    // Tokens come in the URL hash after clicking the email link
+    function getTokensFromUrl() {
+      const hash = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+      const query = new URLSearchParams(location.search);
+      return {
+        access_token: hash.get("access_token") || query.get("access_token"),
+        refresh_token: hash.get("refresh_token") || query.get("refresh_token"),
+        type: hash.get("type") || query.get("type"),
+        error: hash.get("error_description") || query.get("error_description")
+          || hash.get("error") || query.get("error")
+      };
+    }
+
+    const tokens = getTokensFromUrl();
+
+    if (tokens.error) {
+      formWrap.hidden = true;
+      subtitle.textContent = "This reset link cannot be used.";
+      show(decodeURIComponent(String(tokens.error).replace(/\+/g, " ")), false);
+    } else if (!tokens.access_token) {
+      formWrap.hidden = true;
+      subtitle.textContent = "Open this page from the reset link in your email.";
+      show("No reset token found. In the extension, click Forgot password? and use the newest email.", false);
+    }
+
+    saveBtn.addEventListener("click", async () => {
+      const p1 = document.getElementById("password").value;
+      const p2 = document.getElementById("password2").value;
+      if (!p1 || p1.length < 6) {
+        show("Password must be at least 6 characters.", false);
+        return;
+      }
+      if (p1 !== p2) {
+        show("Passwords do not match.", false);
+        return;
+      }
+      if (!tokens.access_token) {
+        show("Missing reset token. Request a new email from the extension.", false);
+        return;
+      }
+
+      saveBtn.disabled = true;
+      show("Saving…", true);
+
+      try {
+        // 1) Set session from recovery tokens
+        const sessRes = await fetch(SUPABASE_URL + "/auth/v1/user", {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + tokens.access_token
+          }
+        });
+        if (!sessRes.ok) {
+          const err = await sessRes.json().catch(() => ({}));
+          throw new Error(err.msg || err.message || "Reset link expired. Request a new one.");
+        }
+
+        // 2) Update password
+        const updRes = await fetch(SUPABASE_URL + "/auth/v1/user", {
+          method: "PUT",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + tokens.access_token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ password: p1 })
+        });
+        const updJson = await updRes.json().catch(() => ({}));
+        if (!updRes.ok) {
+          throw new Error(updJson.msg || updJson.message || "Could not update password.");
+        }
+
+        formWrap.hidden = true;
+        subtitle.textContent = "Password updated.";
+        show("Success. Open the Chrome extension and log in with your email and new password.", true);
+        history.replaceState(null, "", location.pathname);
+      } catch (e) {
+        show(e.message || String(e), false);
+        saveBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

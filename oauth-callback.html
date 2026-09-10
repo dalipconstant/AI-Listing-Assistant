@@ -22,49 +22,45 @@
   var EXT_ID = "ejaoahpnkphhgbjoadidjggofljnkcne";
   var hash = window.location.hash || "";
   var search = window.location.search || "";
-  if (!hash && /access_token=|error=|code=/.test(search)) {
+  if (!hash && /access_token=|id_token=|error=/.test(search)) {
     hash = "#" + search.replace(/^\?/, "");
   }
   var el = document.getElementById("m");
-  function fail(t) {
-    el.className = "err";
-    el.textContent = t || "Sign-in failed. Close this tab and try email login in the extension.";
-  }
-  function ok(t) {
-    el.className = "ok";
-    el.textContent = t || "Signed in! Close this tab and open the extension popup.";
-  }
-  if (!hash || (!/access_token=/.test(hash) && !/error=/.test(hash))) {
-    fail("No login tokens in this page. Close tab and try again from the extension.");
+  function fail(t) { el.className = "err"; el.textContent = t; }
+  function ok(t) { el.className = "ok"; el.textContent = t; }
+
+  var params = new URLSearchParams((hash || "").replace(/^#/, ""));
+  if (params.get("error")) {
+    fail(params.get("error_description") || params.get("error") || "Google error");
     return;
   }
-  if (/error=/.test(hash)) {
-    try {
-      var p = new URLSearchParams(hash.replace(/^#/, ""));
-      fail(p.get("error_description") || p.get("error") || "Google sign-in error");
-    } catch (e) { fail("Google sign-in error"); }
+  var idToken = params.get("id_token");
+  var accessToken = params.get("access_token");
+  if (!idToken && !accessToken) {
+    fail("No tokens in URL. Add this exact URL as Authorized redirect URI in Google Cloud, then try again:\nhttps://dalipconstant.github.io/AI-Listing-Assistant/oauth-callback.html");
     return;
   }
   if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
-    fail("Open this page from Chrome with the extension installed.");
+    fail("Open this in Chrome with the extension installed.");
     return;
   }
-  try {
-    chrome.runtime.sendMessage(
-      EXT_ID,
-      { type: "LISTING_OAUTH_CALLBACK", hash: hash, search: search },
-      function (res) {
-        if (chrome.runtime.lastError) {
-          fail(chrome.runtime.lastError.message + " — Reload the extension, then try again.");
-          return;
-        }
-        if (res && res.ok) ok();
-        else fail((res && res.error) || "Could not save session.");
+  chrome.runtime.sendMessage(
+    EXT_ID,
+    {
+      type: "LISTING_OAUTH_CALLBACK",
+      hash: hash,
+      id_token: idToken || null,
+      access_token: accessToken || null
+    },
+    function (res) {
+      if (chrome.runtime.lastError) {
+        fail(chrome.runtime.lastError.message + " — Reload the extension.");
+        return;
       }
-    );
-  } catch (e) {
-    fail(String(e.message || e));
-  }
+      if (res && res.ok) ok("Signed in! Close this tab and open the extension.");
+      else fail((res && res.error) || "Could not save session.");
+    }
+  );
 })();
 </script>
 </body>

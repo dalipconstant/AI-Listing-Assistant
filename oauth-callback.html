@@ -8,8 +8,8 @@
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
       font-family:system-ui,sans-serif;background:#0b1020;color:#e2e8f0;text-align:center;padding:24px}
     h1{font-size:20px;color:#c4b5fd;margin:0 0 10px}
-    p{opacity:.9;font-size:14px;line-height:1.5;max-width:440px;margin:0 auto 12px}
-    .ok{color:#34d399} .err{color:#f87171}
+    p{opacity:.9;font-size:14px;line-height:1.5;max-width:440px;margin:0 auto}
+    .ok{color:#34d399}.err{color:#f87171}
   </style>
 </head>
 <body>
@@ -22,7 +22,7 @@
   var EXT_ID = "ejaoahpnkphhgbjoadidjggofljnkcne";
   var hash = window.location.hash || "";
   var search = window.location.search || "";
-  if (!hash && /access_token=|id_token=|error=/.test(search)) {
+  if (!hash && /access_token=|error=/.test(search)) {
     hash = "#" + search.replace(/^\?/, "");
   }
   var el = document.getElementById("m");
@@ -31,33 +31,26 @@
 
   var params = new URLSearchParams((hash || "").replace(/^#/, ""));
   if (params.get("error")) {
-    fail(params.get("error_description") || params.get("error") || "Google error");
+    fail(params.get("error_description") || params.get("error") || "Google/Supabase error");
     return;
   }
-  var idToken = params.get("id_token");
-  var accessToken = params.get("access_token");
-  if (!idToken && !accessToken) {
-    fail("No tokens in URL. Add this exact URL as Authorized redirect URI in Google Cloud, then try again:\nhttps://dalipconstant.github.io/AI-Listing-Assistant/oauth-callback.html");
+  if (!params.get("access_token")) {
+    fail("No access_token. Check Supabase Google provider Client ID/Secret, and Google redirect URI: https://ddbeloxsjsrekwdryrcp.supabase.co/auth/v1/callback");
     return;
   }
   if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
-    fail("Open this in Chrome with the extension installed.");
+    fail("Open this tab in Chrome with the extension installed.");
     return;
   }
   chrome.runtime.sendMessage(
     EXT_ID,
-    {
-      type: "LISTING_OAUTH_CALLBACK",
-      hash: hash,
-      id_token: idToken || null,
-      access_token: accessToken || null
-    },
+    { type: "LISTING_OAUTH_CALLBACK", hash: hash },
     function (res) {
       if (chrome.runtime.lastError) {
-        fail(chrome.runtime.lastError.message + " — Reload the extension.");
+        fail(chrome.runtime.lastError.message + " — Reload the extension, then try again.");
         return;
       }
-      if (res && res.ok) ok("Signed in! Close this tab and open the extension.");
+      if (res && res.ok) ok("Signed in! Close this tab and open the extension popup.");
       else fail((res && res.error) || "Could not save session.");
     }
   );

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Signing in…</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#0b1020;color:#e2e8f0;display:flex;
+      min-height:100vh;align-items:center;justify-content:center;margin:0;text-align:center;padding:24px}
+    h1{font-size:18px;color:#a78bfa}
+    p{opacity:.85;font-size:14px;line-height:1.5;max-width:420px}
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Signing you in…</h1>
+    <p id="m">Returning to AI Listing Assistant. You can close this tab.</p>
+  </div>
+<script>
+(function () {
+  var EXT = "https://ejaoahpnkphhgbjoadidjggofljnkcne.chromiumapp.org/";
+  var hash = window.location.hash || "";
+  var search = window.location.search || "";
+  if (!hash && /access_token=|error=/.test(search)) {
+    hash = "#" + search.replace(/^\?/, "");
+  }
+  if (hash && /access_token=|error=/.test(hash)) {
+    try { window.location.replace(EXT + hash); } catch (e) {}
+    document.getElementById("m").textContent =
+      "If the extension did not open, copy this URL into a note and contact support: " + EXT;
+  } else {
+    document.getElementById("m").textContent = "No login tokens found. Close this tab and try again in the extension.";
+  }
+})();
+</script>
+</body>
+</html>

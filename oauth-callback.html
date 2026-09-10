@@ -3,33 +3,67 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Signing in…</title>
+  <title>AI Listing — Sign in</title>
   <style>
-    body{font-family:system-ui,sans-serif;background:#0b1020;color:#e2e8f0;display:flex;
-      min-height:100vh;align-items:center;justify-content:center;margin:0;text-align:center;padding:24px}
-    h1{font-size:18px;color:#a78bfa}
-    p{opacity:.85;font-size:14px;line-height:1.5;max-width:420px}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      font-family:system-ui,sans-serif;background:#0b1020;color:#e2e8f0;text-align:center;padding:24px}
+    h1{font-size:20px;color:#c4b5fd;margin:0 0 10px}
+    p{opacity:.9;font-size:14px;line-height:1.5;max-width:440px;margin:0 auto 12px}
+    .ok{color:#34d399} .err{color:#f87171}
   </style>
 </head>
 <body>
   <div>
-    <h1>Signing you in…</h1>
-    <p id="m">Returning to AI Listing Assistant. You can close this tab.</p>
+    <h1>AI Listing Assistant</h1>
+    <p id="m">Finishing Google sign-in…</p>
   </div>
 <script>
 (function () {
-  var EXT = "https://ejaoahpnkphhgbjoadidjggofljnkcne.chromiumapp.org/";
+  var EXT_ID = "ejaoahpnkphhgbjoadidjggofljnkcne";
   var hash = window.location.hash || "";
   var search = window.location.search || "";
-  if (!hash && /access_token=|error=/.test(search)) {
+  if (!hash && /access_token=|error=|code=/.test(search)) {
     hash = "#" + search.replace(/^\?/, "");
   }
-  if (hash && /access_token=|error=/.test(hash)) {
-    try { window.location.replace(EXT + hash); } catch (e) {}
-    document.getElementById("m").textContent =
-      "If the extension did not open, copy this URL into a note and contact support: " + EXT;
-  } else {
-    document.getElementById("m").textContent = "No login tokens found. Close this tab and try again in the extension.";
+  var el = document.getElementById("m");
+  function fail(t) {
+    el.className = "err";
+    el.textContent = t || "Sign-in failed. Close this tab and try email login in the extension.";
+  }
+  function ok(t) {
+    el.className = "ok";
+    el.textContent = t || "Signed in! Close this tab and open the extension popup.";
+  }
+  if (!hash || (!/access_token=/.test(hash) && !/error=/.test(hash))) {
+    fail("No login tokens in this page. Close tab and try again from the extension.");
+    return;
+  }
+  if (/error=/.test(hash)) {
+    try {
+      var p = new URLSearchParams(hash.replace(/^#/, ""));
+      fail(p.get("error_description") || p.get("error") || "Google sign-in error");
+    } catch (e) { fail("Google sign-in error"); }
+    return;
+  }
+  if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+    fail("Open this page from Chrome with the extension installed.");
+    return;
+  }
+  try {
+    chrome.runtime.sendMessage(
+      EXT_ID,
+      { type: "LISTING_OAUTH_CALLBACK", hash: hash, search: search },
+      function (res) {
+        if (chrome.runtime.lastError) {
+          fail(chrome.runtime.lastError.message + " — Reload the extension, then try again.");
+          return;
+        }
+        if (res && res.ok) ok();
+        else fail((res && res.error) || "Could not save session.");
+      }
+    );
+  } catch (e) {
+    fail(String(e.message || e));
   }
 })();
 </script>

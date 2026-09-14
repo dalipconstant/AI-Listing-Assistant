@@ -136,6 +136,14 @@
           description: labels[plan] || label,
           order_id: orderId,
           theme: { color: "#7c3aed" },
+          // Prefer UPI Intent / QR; hide deprecated UPI Collect (NPCI)
+          config: {
+            display: {
+              hide: [
+                { method: "upi", flows: ["collect"] }
+              ]
+            }
+          },
           handler: function (response) {
             setStatus("Verifying payment…");
             verify(response).then(function (v) {
@@ -155,7 +163,12 @@
           }
         });
         rzp.on("payment.failed", function (resp) {
-          setStatus((resp && resp.error && resp.error.description) || "Payment failed", "err");
+          var err = (resp && resp.error) || {};
+          var msg = err.description || "Payment failed";
+          if (err.source === "bank" || /receiver bank|declined/i.test(msg)) {
+            msg += " Try Google Pay or PhonePe if FamPay failed.";
+          }
+          setStatus(msg, "err");
           payBtn.disabled = false;
         });
         rzp.open();

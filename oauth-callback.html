@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>AI Listing — Sign in</title>
+  <title>AI Listing Assistant — Sign in</title>
   <style>
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
       font-family:system-ui,sans-serif;background:#0b1020;color:#e2e8f0;text-align:center;padding:24px}
@@ -15,14 +15,18 @@
 <body>
   <div>
     <h1>AI Listing Assistant</h1>
-    <p id="m">Finishing Google sign-in…</p>
+    <p id="m">Finishing sign-in…</p>
   </div>
 <script>
 (function () {
-  var EXT_ID = "ejaoahpnkphhgbjoadidjggofljnkcne";
+  // Published Chrome Web Store extension ID
+  var EXT_IDS = [
+    "hpacodjfppcoojmijmapbcmnlcclipel",
+    "ejaoahpnkphhgbjoadidjggofljnkcne"
+  ];
   var hash = window.location.hash || "";
   var search = window.location.search || "";
-  if (!hash && /access_token=|error=/.test(search)) {
+  if (!hash && /access_token=|error=|type=/.test(search)) {
     hash = "#" + search.replace(/^\?/, "");
   }
   var el = document.getElementById("m");
@@ -31,29 +35,48 @@
 
   var params = new URLSearchParams((hash || "").replace(/^#/, ""));
   if (params.get("error")) {
-    fail(params.get("error_description") || params.get("error") || "Google/Supabase error");
+    fail(params.get("error_description") || params.get("error") || "Sign-in error");
     return;
   }
+
+  // Password recovery email links only — not Google login
+  if (params.get("type") === "recovery" && params.get("access_token")) {
+    el.innerHTML = "Password reset link opened.<br/>Open the <b>AI Listing Assistant</b> extension and sign in with email + new password after you set it in Supabase, or use Continue with Google.";
+    return;
+  }
+
   if (!params.get("access_token")) {
-    fail("No access_token. Check Supabase Google provider Client ID/Secret, and Google redirect URI: https://ddbeloxsjsrekwdryrcp.supabase.co/auth/v1/callback");
+    fail("No session token. Prefer Continue with Google inside the extension popup (Chrome identity). Do not use this page for Google login.");
     return;
   }
-  if (!chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
-    fail("Open this tab in Chrome with the extension installed.");
-    return;
-  }
-  chrome.runtime.sendMessage(
-    EXT_ID,
-    { type: "LISTING_OAUTH_CALLBACK", hash: hash },
-    function (res) {
-      if (chrome.runtime.lastError) {
-        fail(chrome.runtime.lastError.message + " — Reload the extension, then try again.");
-        return;
-      }
-      if (res && res.ok) ok("Signed in! Close this tab and open the extension popup.");
-      else fail((res && res.error) || "Could not save session.");
+
+  // Try to hand tokens to the installed extension
+  var payload = { type: "LISTING_OAUTH_CALLBACK", hash: hash };
+  var i = 0;
+  function tryNext() {
+    if (i >= EXT_IDS.length) {
+      ok("Signed in on the web. Open the extension popup — if still logged out, use Continue with Google inside the popup (not this page).");
+      return;
     }
-  );
+    var id = EXT_IDS[i++];
+    if (!window.chrome || !chrome.runtime || !chrome.runtime.sendMessage) {
+      ok("Token received. Open the extension and use Continue with Google from the popup.");
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage(id, payload, function (res) {
+        if (chrome.runtime.lastError) {
+          tryNext();
+          return;
+        }
+        if (res && res.ok) ok("Signed in! Close this tab and open the extension popup.");
+        else tryNext();
+      });
+    } catch (e) {
+      tryNext();
+    }
+  }
+  tryNext();
 })();
 </script>
 </body>

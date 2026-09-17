@@ -27,7 +27,39 @@
     }
     h1 { margin: 0 0 8px; font-size: 1.35rem; }
     p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
-    .price { margin: 18px 0 8px; font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+    .price {
+      margin: 18px 0 6px; font-size: 2rem; font-weight: 800; letter-spacing: -0.03em;
+    }
+    .price .old {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: line-through;
+      margin-bottom: 4px;
+    }
+    .price .now { color: #a7f3d0; }
+    .savings {
+      display: none;
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #86efac;
+    }
+    .savings.show { display: block; }
+    .promo-badge {
+      display: none;
+      margin: 0 auto 12px;
+      width: fit-content;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #bbf7d0;
+      background: rgba(16,185,129,.18);
+      border: 1px solid rgba(52,211,153,.35);
+    }
+    .promo-badge.show { display: inline-block; }
     .plan { color: #c4b5fd; font-weight: 600; font-size: 13px; margin-bottom: 20px; }
     button {
       width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 800;
@@ -47,6 +79,8 @@
     <h1>Complete payment</h1>
     <p>Secure Razorpay checkout for AI Listing Assistant</p>
     <div class="price" id="price">—</div>
+    <div class="savings" id="savings"></div>
+    <div class="promo-badge" id="promoBadge">Discount applied</div>
     <div class="plan" id="planLabel">—</div>
     <button type="button" id="payBtn">Pay now</button>
     <p class="status" id="status">Preparing…</p>
@@ -54,38 +88,117 @@
 
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
+    /**
+     * GitHub-only checkout. Works with the LIVE extension plans page (no extension update).
+     * If create-order returns discounted amount (e.g. 100 paise), label shows ~~₹99~~ ₹1.
+     */
     (function () {
       const SUPABASE_URL = "https://ddbeloxsjsrekwdryrcp.supabase.co";
       const SUPABASE_ANON_KEY = "sb_publishable_otnqsJbJlqRsLAZyCdcHqQ_NTdwl5gY";
 
-      const q = new URLSearchParams(location.search);
-      const hash = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-      const orderId = q.get("orderId") || q.get("order_id");
-      const keyId = q.get("keyId") || q.get("key_id");
-      const amount = Number(q.get("amount") || 0);
-      const currency = q.get("currency") || "INR";
-      const plan = q.get("plan") || "monthly";
-      const label = q.get("label") || plan;
-      const accessToken = hash.get("token") || q.get("token") || "";
+      const DEFAULT_PAISE = {
+        testweek: 9900,
+        weekly: 9900,
+        monthly: 29900,
+        quarterly: 84900,
+        halfyear: 159900,
+        yearly: 299900
+      };
 
       const labels = {
+        testweek: "Weekly Ultimate",
+        weekly: "Weekly Ultimate",
         monthly: "1 Month Ultimate",
         quarterly: "3 Months Ultimate",
         halfyear: "6 Months Ultimate",
         yearly: "12 Months Ultimate"
       };
 
+      const q = new URLSearchParams(location.search);
+      const hash = new URLSearchParams((location.hash || "").replace(/^#/, ""));
+      const orderId = q.get("orderId") || q.get("order_id");
+      const keyId = q.get("keyId") || q.get("key_id");
+      const amount = Number(q.get("amount") || q.get("discountedAmount") || 0);
+      let originalAmount = Number(q.get("originalAmount") || 0);
+      const currency = q.get("currency") || "INR";
+      const plan = String(q.get("plan") || "monthly").toLowerCase();
+      const label = q.get("label") || plan;
+      let promoCode = (q.get("promoCode") || q.get("code") || "").trim();
+      const accessToken = hash.get("token") || q.get("token") || "";
+
       const statusEl = document.getElementById("status");
       const payBtn = document.getElementById("payBtn");
-      document.getElementById("price").textContent = amount
-        ? ("₹" + (amount / 100).toLocaleString("en-IN"))
-        : "—";
-      document.getElementById("planLabel").textContent = labels[plan] || label;
+      const priceEl = document.getElementById("price");
+      const promoBadge = document.getElementById("promoBadge");
+      const savingsEl = document.getElementById("savings");
+      const planLabelEl = document.getElementById("planLabel");
+
+      function formatInr(paise) {
+        return "₹" + (Number(paise) / 100).toLocaleString("en-IN");
+      }
+
+      function weekish(p) {
+        return /^(weekly|testweek|week|week1)$/i.test(String(p || ""));
+      }
+
+      function listPricePaise(planKey) {
+        if (DEFAULT_PAISE[planKey]) return DEFAULT_PAISE[planKey];
+        if (weekish(planKey)) return DEFAULT_PAISE.weekly;
+        return 0;
+      }
+
+      function planMatch(a, b) {
+        const x = String(a || "").toLowerCase();
+        const y = String(b || "").toLowerCase();
+        if (!x || !y) return false;
+        if (x === y) return true;
+        return weekish(x) && weekish(y);
+      }
+
+      function paintPrice() {
+        const list = originalAmount > 0 ? originalAmount : listPricePaise(plan);
+        const charged = amount > 0 ? amount : list;
+        const discounted = list > 0 && charged > 0 && charged < list;
+
+        if (!charged) {
+          priceEl.textContent = "—";
+          payBtn.textContent = "Pay now";
+          return;
+        }
+
+        if (discounted) {
+          priceEl.innerHTML =
+            '<span class="old">' + formatInr(list) + "</span>" +
+            '<span class="now">' + formatInr(charged) + "</span>";
+          promoBadge.classList.add("show");
+          promoBadge.textContent = promoCode
+            ? ("Code " + promoCode.toUpperCase() + " applied")
+            : "Discount applied";
+          savingsEl.textContent = "You save " + formatInr(list - charged);
+          savingsEl.classList.add("show");
+          payBtn.textContent = "Pay " + formatInr(charged) + " now";
+        } else {
+          priceEl.textContent = formatInr(charged);
+          promoBadge.classList.remove("show");
+          savingsEl.classList.remove("show");
+          payBtn.textContent = "Pay " + formatInr(charged) + " now";
+        }
+
+        planLabelEl.textContent = labels[plan] || label;
+      }
 
       function setStatus(t, kind) {
         statusEl.textContent = t || "";
         statusEl.className = "status" + (kind ? " " + kind : "");
       }
+
+      // Old extension may not send originalAmount — use built-in list prices
+      if (!originalAmount || originalAmount <= amount) {
+        const list = listPricePaise(plan);
+        if (list > 0) originalAmount = list;
+      }
+
+      paintPrice();
 
       if (!orderId || !keyId || !amount) {
         setStatus("Missing order details. Open a plan from the extension popup.", "err");
@@ -98,7 +211,52 @@
         return;
       }
 
-      setStatus("Ready — click Pay now");
+      // Optional: show promo code name from profile (no extension change needed)
+      (async function enrichFromProfile() {
+        try {
+          const payload = JSON.parse(
+            atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+          );
+          const uid = payload.sub || payload.user_id;
+          if (!uid) return;
+
+          const res = await fetch(
+            SUPABASE_URL +
+              "/rest/v1/profiles?id=eq." +
+              encodeURIComponent(uid) +
+              "&select=pending_promo_code,pending_promo_plan,pending_promo_amount_paise",
+            {
+              headers: {
+                apikey: SUPABASE_ANON_KEY,
+                Authorization: "Bearer " + accessToken
+              }
+            }
+          );
+          if (!res.ok) return;
+          const rows = await res.json();
+          const p = Array.isArray(rows) ? rows[0] : null;
+          if (!p || !p.pending_promo_code) return;
+          if (!planMatch(p.pending_promo_plan, plan)) return;
+
+          if (!promoCode) promoCode = String(p.pending_promo_code);
+          paintPrice();
+
+          const promoPaise = Number(p.pending_promo_amount_paise || 0);
+          if (promoPaise > 0 && amount > promoPaise && amount >= listPricePaise(plan)) {
+            setStatus(
+              "Order is still full price. create-order must apply the promo amount. Label shows list vs charged.",
+              "err"
+            );
+          }
+        } catch (_e) {}
+      })();
+
+      const listNow = originalAmount || listPricePaise(plan);
+      setStatus(
+        amount > 0 && listNow > amount
+          ? ("Ready — pay " + formatInr(amount) + " (discounted)")
+          : "Ready — click Pay now"
+      );
 
       async function verify(payment) {
         const res = await fetch(SUPABASE_URL + "/functions/v1/verify-payment", {
@@ -128,32 +286,32 @@
           payBtn.disabled = false;
           return;
         }
+        var discounted = originalAmount > 0 && amount < originalAmount;
         var rzp = new Razorpay({
           key: keyId,
           amount: amount,
           currency: currency,
           name: "AI Listing Assistant",
-          description: labels[plan] || label,
+          description: (labels[plan] || label) + (discounted ? " (discounted)" : ""),
           order_id: orderId,
           theme: { color: "#7c3aed" },
-          // Prefer UPI Intent / QR; hide deprecated UPI Collect (NPCI)
           config: {
             display: {
-              hide: [
-                { method: "upi", flows: ["collect"] }
-              ]
+              hide: [{ method: "upi", flows: ["collect"] }]
             }
           },
           handler: function (response) {
             setStatus("Verifying payment…");
-            verify(response).then(function (v) {
-              var until = v.pro_until ? new Date(v.pro_until).toLocaleString() : "active";
-              setStatus("Success! Ultimate until " + until + ". Open the extension popup.", "ok");
-              payBtn.textContent = "Paid";
-            }).catch(function (e) {
-              setStatus(e.message || String(e), "err");
-              payBtn.disabled = false;
-            });
+            verify(response)
+              .then(function (v) {
+                var until = v.pro_until ? new Date(v.pro_until).toLocaleString() : "active";
+                setStatus("Success! Ultimate until " + until + ". Open the extension popup.", "ok");
+                payBtn.textContent = "Paid";
+              })
+              .catch(function (e) {
+                setStatus(e.message || String(e), "err");
+                payBtn.disabled = false;
+              });
           },
           modal: {
             ondismiss: function () {

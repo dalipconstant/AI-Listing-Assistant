@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How to use — AI Listing Assistant</title>
+  <style>
+    :root { --text:#f8fafc; --muted:#94a3b8; --accent:#a78bfa; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, sans-serif; color: var(--text);
+      background: radial-gradient(900px 500px at 10% 0%, rgba(59,130,246,.35), transparent 55%),
+        radial-gradient(800px 400px at 100% 0%, rgba(139,92,246,.3), transparent 50%), #070b16;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 40px 20px 80px; }
+    h1 { font-size: 1.8rem; margin: 0 0 8px;
+      background: linear-gradient(90deg,#fff,#c4b5fd,#f9a8d4);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    h2 { margin: 28px 0 10px; font-size: 1.15rem; color: #e9d5ff; border-bottom: 1px solid rgba(167,139,250,.25); padding-bottom: 6px; }
+    p, li { color: #cbd5e1; font-size: 14px; }
+    .sub { color: var(--muted); margin-bottom: 28px; }
+    section {
+      background: rgba(255,255,255,.05); border: 1px solid rgba(148,163,184,.18);
+      border-radius: 16px; padding: 18px 18px 8px; margin-bottom: 14px;
+    }
+    a { color: #a5b4fc; }
+    code { background: rgba(0,0,0,.35); padding: 2px 6px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>How to use AI Listing Assistant</h1>
+    <p class="sub">Step-by-step guide for sellers on Flipkart, Meesho, Amazon, and more.</p>
+
+    <section>
+      <h2>1. Install &amp; account</h2>
+      <ul>
+        <li>Install from the Chrome Web Store (or Load unpacked while testing).</li>
+        <li>Open the extension → Sign up or Log in (email or Google).</li>
+        <li>Accept the Terms before continuing.</li>
+        <li>New accounts get a short Ultimate trial.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. API key (required)</h2>
+      <ul>
+        <li>After first login, set a <b>Gemini</b> (free) or other provider key in Settings.</li>
+        <li>Get a free Gemini key: <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener">Google AI Studio</a>.</li>
+        <li>Use <b>Test connection</b> until you see a green success state.</li>
+        <li>You can switch models/providers in Settings anytime.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Generate a listing</h2>
+      <ul>
+        <li>Open a <b>listing edit</b> page on Flipkart Seller Hub, Meesho Supplier, or Amazon.</li>
+        <li>Open the extension — the banner should turn green: <code>… listing page detected</code>.</li>
+        <li>Optional: set <b>Seller tone</b> (balanced / generic / reseller / premium / search).</li>
+        <li>Optional: paste competitor links → <b>Use these links</b>.</li>
+        <li>Press <b>Start AI Listing</b> → review the draft → <b>Accept &amp; Autofill</b>.</li>
+        <li>Always review fields at least twice before submitting on the marketplace.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. Scan &amp; score</h2>
+      <ul>
+        <li>Open <b>Other features</b> → <b>Scan &amp; score listing</b>.</li>
+        <li>AI audits like Seller Lens (Flipkart) or search-demand language (other sites).</li>
+        <li>You get a score, fixes, insights, and keyword ideas.</li>
+        <li><b>Save improvement for next listing</b> stores those fixes under a product name.</li>
+        <li>On the next generate, select that saved item (one at a time). It is cleared after one successful autofill.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Plans &amp; codes</h2>
+      <ul>
+        <li>Open <b>Plan</b> from the extension to subscribe via Razorpay.</li>
+        <li>Discount/gift codes can be redeemed on the Plans page when available.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Tips</h2>
+      <ul>
+        <li>Flipkart Model Name must stay under 80 characters (extension enforces this).</li>
+        <li>Meesho: focus on title + description (no keyword field).</li>
+        <li>AI only describes what images support — never invent HSN/material/size.</li>
+        <li>Need help? Email <a href="mailto:supportailistingassistant@gmail.com">supportailistingassistant@gmail.com</a>.</li>
+      </ul>
+    </section>
+
+    <p class="sub">Tutorial video (when available) opens from the <b>Tutorial</b> button inside the extension.</p>
+  </div>
+</body>
+</html>
